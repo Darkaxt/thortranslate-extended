@@ -17,6 +17,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -39,11 +40,16 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kanjilens.data.models.AppSettings
+import com.kanjilens.offline.ModelDownloadState
+import com.kanjilens.offline.OfflineLanguageCatalog
+import com.kanjilens.offline.OfflineModelManager
+import com.kanjilens.offline.SelectionModelState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     settings: AppSettings,
+    offlineModelManager: OfflineModelManager,
     onBack: () -> Unit,
 ) {
     val textSize by settings.textSize.collectAsState()
@@ -52,6 +58,8 @@ fun SettingsScreen(
     val translateStyle by settings.translateStyle.collectAsState()
     val aiModel by settings.aiModel.collectAsState()
     val outputLanguage by settings.outputLanguage.collectAsState()
+    val sourceLanguage by settings.sourceLanguage.collectAsState()
+    val selectionModelState by offlineModelManager.selectionState.collectAsState()
 
     var openaiKeyInput by remember { mutableStateOf(openaiApiKey) }
     var geminiKeyInput by remember { mutableStateOf(geminiApiKey) }
@@ -157,6 +165,47 @@ fun SettingsScreen(
 
             HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
+            // Source Language
+            var sourceMenuExpanded by remember { mutableStateOf(false) }
+            SettingsSection(title = "Offline Translate From") {
+                Box {
+                    Text(
+                        text = OfflineLanguageCatalog.displayName(sourceLanguage),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.primary)
+                            .clickable { sourceMenuExpanded = true }
+                            .padding(vertical = 12.dp, horizontal = 16.dp),
+                    )
+                    DropdownMenu(
+                        expanded = sourceMenuExpanded,
+                        onDismissRequest = { sourceMenuExpanded = false },
+                    ) {
+                        OfflineLanguageCatalog.sourceChoices.forEach { language ->
+                            DropdownMenuItem(
+                                text = { Text(language.displayName) },
+                                onClick = {
+                                    settings.setSourceLanguage(language.tag)
+                                    offlineModelManager.selectSource(language.tag)
+                                    sourceMenuExpanded = false
+                                },
+                            )
+                        }
+                    }
+                }
+                Text(
+                    text = "Auto detects among installed OCR scripts. Selecting a language downloads its missing models immediately.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+
             // Output Language
             var langMenuExpanded by remember { mutableStateOf(false) }
             SettingsSection(title = "Output Language") {
@@ -182,18 +231,19 @@ fun SettingsScreen(
                                 text = { Text(name) },
                                 onClick = {
                                     settings.setOutputLanguage(code)
+                                    offlineModelManager.selectTarget(code)
                                     langMenuExpanded = false
                                 },
                             )
                         }
                     }
                 }
-                if ((aiModel == AppSettings.MODEL_MLKIT_OFFLINE || aiModel == AppSettings.MODEL_MLKIT_OFFLINE_AUTO) && outputLanguage != AppSettings.LANG_ENGLISH) {
-                    Text(
-                        text = "First use will download the ${AppSettings.languageDisplayName(outputLanguage)} model (~30MB)",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp),
+                if (aiModel == AppSettings.MODEL_MLKIT_OFFLINE ||
+                    aiModel == AppSettings.MODEL_MLKIT_OFFLINE_AUTO
+                ) {
+                    OfflineModelStatus(
+                        selectionState = selectionModelState,
+                        onRetry = offlineModelManager::retryCurrentSelection,
                     )
                 }
             }
@@ -301,6 +351,65 @@ fun SettingsScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun OfflineModelStatus(
+    selectionState: SelectionModelState,
+    onRetry: () -> Unit,
+) {
+    val current = selectionState.current
+    if (selectionState.isReady) {
+        Text(
+            text = "Offline models ready",
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        return
+    }
+    if (current == null) return
+
+    val state = current.state
+    val fraction = (state as? ModelDownloadState.Downloading)?.fraction
+    Text(
+        text = when (state) {
+            ModelDownloadState.NotInstalled,
+            ModelDownloadState.Queued,
+            -> "Preparing ${current.label}..."
+            is ModelDownloadState.Downloading -> if (fraction != null) {
+                "Downloading ${current.label} ${(fraction * 100).toInt()}%"
+            } else {
+                "Downloading ${current.label}..."
+            }
+            ModelDownloadState.Installing -> "Installing ${current.label}..."
+            ModelDownloadState.Paused -> "${current.label} download paused"
+            is ModelDownloadState.Failed -> "${current.label}: ${state.message} — tap to retry"
+            ModelDownloadState.Ready -> "${current.label} ready"
+        },
+        fontSize = 12.sp,
+        color = if (state is ModelDownloadState.Failed) {
+            MaterialTheme.colorScheme.error
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        modifier = if (state is ModelDownloadState.Failed) {
+            Modifier.clickable(onClick = onRetry)
+        } else {
+            Modifier
+        },
+    )
+    if (state is ModelDownloadState.Downloading && fraction != null) {
+        LinearProgressIndicator(
+            progress = { fraction },
+            modifier = Modifier.fillMaxWidth(),
+        )
+    } else if (
+        state == ModelDownloadState.Queued ||
+        state == ModelDownloadState.Installing ||
+        state is ModelDownloadState.Downloading
+    ) {
+        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
     }
 }
 

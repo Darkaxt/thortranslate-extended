@@ -4,6 +4,7 @@ import android.app.Application
 import com.kanjilens.data.models.AppSettings
 import com.kanjilens.offline.MultiScriptTextRecognizer
 import com.kanjilens.offline.OfflineModelManager
+import com.kanjilens.offline.OfflineTranslator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -18,6 +19,8 @@ class KanjiLensApp : Application() {
         private set
     lateinit var offlineModelManager: OfflineModelManager
         private set
+    lateinit var offlineTranslator: OfflineTranslator
+        private set
 
     override fun onCreate() {
         super.onCreate()
@@ -30,9 +33,11 @@ class KanjiLensApp : Application() {
             initialSourceTag = settings.sourceLanguage.value,
             initialTargetTag = settings.outputLanguage.value,
         )
+        offlineTranslator = OfflineTranslator(multiScriptTextRecognizer, offlineModelManager)
     }
 
     override fun onTerminate() {
+        offlineTranslator.close()
         multiScriptTextRecognizer.close()
         applicationScope.cancel()
         super.onTerminate()
