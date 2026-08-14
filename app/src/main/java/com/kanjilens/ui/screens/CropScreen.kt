@@ -22,6 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,7 +56,7 @@ fun CropScreen(
 
     // Initialize from saved crop or default to full
     val savedCrop = settings.cropRegion
-    val hasSavedCrop = settings.cropEnabled.value
+    val hasSavedCrop by settings.cropEnabled.collectAsState()
     var startOffset by remember { mutableStateOf<Offset?>(
         if (hasSavedCrop) Offset(savedCrop.left, savedCrop.top) else null
     ) }

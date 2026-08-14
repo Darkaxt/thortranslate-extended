@@ -1,5 +1,7 @@
 package com.kanjilens.data.models
 
+import com.kanjilens.offline.OfflineTranslationBlock
+
 data class WordEntry(
     val surface: String,
     val reading: String,
@@ -15,6 +17,8 @@ data class AnalysisResult(
 
 data class TranslationResult(
     val translation: String,
+    val offlineBlocks: List<OfflineTranslationBlock> = emptyList(),
+    val sourceLanguageTag: String? = null,
 )
 
 sealed class CaptureState {

@@ -21,6 +21,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -51,6 +52,7 @@ import com.kanjilens.data.models.AppSettings
 import com.kanjilens.data.models.CaptureState
 import com.kanjilens.data.models.TranslationResult
 import com.kanjilens.ocr.TextRecognizer
+import com.kanjilens.offline.OfflineModelManager
 import com.kanjilens.translate.ScreenTranslator
 import com.kanjilens.translate.TranslateResult
 import androidx.compose.foundation.layout.Spacer
@@ -70,6 +72,7 @@ fun MainScreen(
     dictionary: DictionaryLookup,
     translator: ScreenTranslator,
     settings: AppSettings,
+    offlineModelManager: OfflineModelManager,
     dictionaryState: CaptureState,
     translateState: CaptureState,
     onDictionaryStateChange: (CaptureState) -> Unit,
@@ -87,6 +90,8 @@ fun MainScreen(
     val openaiKey by settings.openaiApiKey.collectAsState()
     val geminiKey by settings.geminiApiKey.collectAsState()
     val outputLanguage by settings.outputLanguage.collectAsState()
+    val sourceLanguage by settings.sourceLanguage.collectAsState()
+    val selectionModelState by offlineModelManager.selectionState.collectAsState()
     val cropEnabled by settings.cropEnabled.collectAsState()
     val apiKey = when (aiModel) {
         AppSettings.MODEL_GEMINI_FLASH -> geminiKey
@@ -168,7 +173,10 @@ fun MainScreen(
 
     fun doTranslateCapture() {
         scope.launch {
-            if (aiModel != AppSettings.MODEL_MLKIT_OFFLINE && apiKey.isBlank()) {
+            if (aiModel != AppSettings.MODEL_MLKIT_OFFLINE &&
+                aiModel != AppSettings.MODEL_MLKIT_OFFLINE_AUTO &&
+                apiKey.isBlank()
+            ) {
                 onTranslateStateChange(CaptureState.Error("Add your API key in Settings"))
                 return@launch
             }
@@ -184,12 +192,16 @@ fun MainScreen(
             onTranslateStateChange(CaptureState.Processing)
 
             when (val result = translator.translateScreen(
-                bitmap, apiKey, translateStyle, aiModel, outputLanguage,
+                bitmap, apiKey, translateStyle, aiModel, outputLanguage, sourceLanguage,
                 onDownloading = { onTranslateStateChange(CaptureState.DownloadingModel) },
             )) {
                 is TranslateResult.Success -> {
                     onTranslateStateChange(CaptureState.TranslateSuccess(
-                        TranslationResult(translation = result.text)
+                        TranslationResult(
+                            translation = result.text,
+                            offlineBlocks = result.offlineBlocks,
+                            sourceLanguageTag = result.sourceLanguageTag,
+                        )
                     ))
                 }
                 is TranslateResult.Error -> {
@@ -207,40 +219,46 @@ fun MainScreen(
         }
     }
 
-    fun doAutoTranslateCycle() {
-        scope.launch {
-            val fullBitmap = captureManager.captureScreen() ?: return@launch
+    suspend fun doAutoTranslateCycle() {
+        if (!selectionModelState.isReady) return
+        val fullBitmap = captureManager.captureScreen() ?: return
 
-            val bitmap = cropBitmap(fullBitmap)
+        val bitmap = cropBitmap(fullBitmap)
 
-            // Get OCR text first for dedup
-            val blocks = textRecognizer.recognizeTextBlocks(bitmap)
-            if (blocks.isNullOrEmpty()) return@launch
+        val recognized = try {
+            translator.recognizeOffline(bitmap, sourceLanguage)
+        } catch (error: Exception) {
+            onTranslateStateChange(CaptureState.Error(error.message ?: "No text found"))
+            return
+        }
+        val currentText = recognized.blocks.joinToString("\n")
+            .lowercase()
+            .filterNot(Char::isWhitespace)
 
-            val currentText = blocks.joinToString("")
-                .filter { c -> c.code > 0x3000 } // Keep only CJK chars for dedup
+        if (currentText.isEmpty()) return
 
-            if (currentText.isEmpty()) return@launch
+        if (!isSignificantChange(lastOcrText ?: "", currentText)) {
+            return // Text hasn't changed, skip
+        }
+        lastOcrText = currentText
 
-            if (!isSignificantChange(lastOcrText ?: "", currentText)) {
-                return@launch // Text hasn't changed, skip
+        onTranslateStateChange(CaptureState.Processing)
+
+        when (val result = translator.translateRecognizedOffline(
+            recognized, outputLanguage,
+            onDownloading = { onTranslateStateChange(CaptureState.DownloadingModel) },
+        )) {
+            is TranslateResult.Success -> {
+                onTranslateStateChange(CaptureState.TranslateSuccess(
+                    TranslationResult(
+                        translation = result.text,
+                        offlineBlocks = result.offlineBlocks,
+                        sourceLanguageTag = result.sourceLanguageTag,
+                    )
+                ))
             }
-            lastOcrText = currentText
-
-            onTranslateStateChange(CaptureState.Processing)
-
-            when (val result = translator.translateScreen(
-                bitmap, "", AppSettings.TRANSLATE_STYLE_AUTO, AppSettings.MODEL_MLKIT_OFFLINE, outputLanguage,
-                onDownloading = { onTranslateStateChange(CaptureState.DownloadingModel) },
-            )) {
-                is TranslateResult.Success -> {
-                    onTranslateStateChange(CaptureState.TranslateSuccess(
-                        TranslationResult(translation = result.text)
-                    ))
-                }
-                is TranslateResult.Error -> {
-                    onTranslateStateChange(CaptureState.Error(result.message))
-                }
+            is TranslateResult.Error -> {
+                onTranslateStateChange(CaptureState.Error(result.message))
             }
         }
     }
@@ -335,7 +353,7 @@ fun MainScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "ThorLens",
+                        text = "ThorLens Extended",
                         fontWeight = FontWeight.Bold,
                     )
                 },
@@ -472,7 +490,13 @@ fun MainScreen(
             ) {
                 when (val state = captureState) {
                     is CaptureState.Idle -> {
-                        val hint = if (appMode == AppSettings.MODE_TRANSLATE) {
+                        val offlineWaiting = appMode == AppSettings.MODE_TRANSLATE &&
+                            (aiModel == AppSettings.MODEL_MLKIT_OFFLINE ||
+                                aiModel == AppSettings.MODEL_MLKIT_OFFLINE_AUTO) &&
+                            !selectionModelState.isReady
+                        val hint = if (offlineWaiting) {
+                            "Preparing offline models..."
+                        } else if (appMode == AppSettings.MODE_TRANSLATE) {
                             "Press the button to capture\nand translate the screen"
                         } else {
                             "Press the button to capture\nand look up words"
@@ -492,12 +516,17 @@ fun MainScreen(
                         )
                     }
                     is CaptureState.DownloadingModel -> {
-                        val langName = AppSettings.languageDisplayName(outputLanguage)
-                        Text(
-                            text = "Downloading $langName model...",
-                            fontSize = 16.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                text = "Downloading detected language model...",
+                                fontSize = 16.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        }
                     }
                     is CaptureState.Processing -> {
                         val langName = AppSettings.languageDisplayName(outputLanguage)
@@ -538,35 +567,22 @@ fun MainScreen(
                             else -> 16.sp
                         }
                         if (aiModel == AppSettings.MODEL_MLKIT_OFFLINE || aiModel == AppSettings.MODEL_MLKIT_OFFLINE_AUTO) {
-                            // Offline: show blocks with JP original + EN translation
                             Column {
-                                val lines = state.result.translation.split("\n")
-                                var i = 0
-                                while (i < lines.size) {
-                                    val line = lines[i].trim()
-                                    if (line.isEmpty()) {
-                                        i++
-                                        continue
-                                    }
-                                    // JP original line
+                                state.result.offlineBlocks.forEach { block ->
                                     Text(
-                                        text = line,
+                                        text = block.original,
                                         fontSize = translateFontSize,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         lineHeight = translateFontSize * 1.4,
                                     )
-                                    // EN translation line (next line if exists)
-                                    if (i + 1 < lines.size && lines[i + 1].trim().isNotEmpty()) {
+                                    if (block.translated != block.original) {
                                         Text(
-                                            text = lines[i + 1].trim(),
+                                            text = block.translated,
                                             fontSize = translateFontSize,
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.primary,
                                             lineHeight = translateFontSize * 1.4,
                                         )
-                                        i += 2
-                                    } else {
-                                        i++
                                     }
                                     Spacer(modifier = Modifier.height(12.dp))
                                 }
@@ -594,7 +610,10 @@ fun MainScreen(
             CaptureButton(
                 isProcessing = captureState is CaptureState.Capturing
                     || captureState is CaptureState.DownloadingModel
-                    || captureState is CaptureState.Processing,
+                    || captureState is CaptureState.Processing
+                    || ((aiModel == AppSettings.MODEL_MLKIT_OFFLINE ||
+                        aiModel == AppSettings.MODEL_MLKIT_OFFLINE_AUTO) &&
+                        !selectionModelState.isReady),
                 onClick = { onCaptureClick() },
                 modifier = Modifier.padding(bottom = 16.dp),
                 isAutoMode = isAutoMode,

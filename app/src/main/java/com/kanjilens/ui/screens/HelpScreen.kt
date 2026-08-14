@@ -58,9 +58,9 @@ fun HelpScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            HelpSection("What is ThorLens?")
+            HelpSection("What is ThorLens Extended?")
             HelpBody(
-                "ThorLens translates foreign-language game screens in real time. " +
+                "ThorLens Extended translates foreign-language game screens in real time. " +
                 "Built for dual-screen devices like the Ayn Thor — run your game on the top screen " +
                 "and ThorLens on the bottom."
             )
@@ -70,7 +70,8 @@ fun HelpScreen(
             HelpSection("Translate Mode")
             HelpBody(
                 "Captures a screenshot and sends it to an AI model that translates " +
-                "and explains what's on screen. Works with any language — Japanese, Chinese, Korean, and more."
+                "and explains what's on screen. AI models accept any language; offline screenshot " +
+                "translation covers ML Kit's five OCR script families."
             )
             HelpBody("Three translation styles (AI models only):")
             HelpBullet("Auto", "Translates and explains what to do next (recommended)")
@@ -89,7 +90,7 @@ fun HelpScreen(
             HelpDivider()
 
             HelpSection("AI Models")
-            HelpBullet("Offline", "On-device translation. No API key, no internet after first download (~30MB). Fast but basic quality.")
+            HelpBullet("Offline", "On-device OCR, source detection, and translation. No API key and no internet after the selected models finish downloading.")
             HelpBullet("Offline Auto", "Same as Offline, but captures and translates automatically every second. Only re-translates when the text on screen changes. Press Stop to go back to manual mode.")
             HelpBullet("Gemini 2.5 Flash", "By Google. Free tier available — great to get started.")
             HelpBullet("GPT-4o mini", "By OpenAI. Reliable and fast.")
@@ -98,12 +99,17 @@ fun HelpScreen(
 
             HelpDivider()
 
-            HelpSection("Output Language")
+            HelpSection("Offline Languages")
             HelpBody(
-                "Choose which language to translate into. Available in Settings. " +
-                "Supports English, Spanish, Portuguese, French, German, Italian, Chinese, Korean, and Russian."
+                "Translate From defaults to Auto. Auto detects among installed Latin, Chinese, " +
+                "Devanagari, Japanese, and Korean OCR scripts. Selecting a source language starts " +
+                "any missing OCR and translation downloads immediately."
             )
-            HelpBody("For Offline mode, each language downloads a ~30MB model on first use.")
+            HelpBody(
+                "Output Language includes every language supported by ML Kit Translation. " +
+                "Translation packs are roughly 30MB per language. Scripts not provided by ML Kit OCR " +
+                "cannot be read from screenshots, even when they are valid output languages."
+            )
 
             HelpDivider()
 
@@ -125,7 +131,7 @@ fun HelpScreen(
             HelpBody("3. Click \"Get API Key\"")
             HelpBody("4. Click \"Create API key\"")
             HelpBody("5. Copy the key (starts with AIza...)")
-            HelpBody("6. Paste it in ThorLens Settings")
+            HelpBody("6. Paste it in ThorLens Extended Settings")
 
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -135,12 +141,12 @@ fun HelpScreen(
             HelpBody("3. Go to API Keys section")
             HelpBody("4. Click \"Create new secret key\"")
             HelpBody("5. Copy the key (starts with sk-...)")
-            HelpBody("6. Paste it in ThorLens Settings")
+            HelpBody("6. Paste it in ThorLens Extended Settings")
 
             HelpDivider()
 
             Text(
-                text = "Made by magiobus",
+                text = "Extended fork of ThorLens by magiobus",
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp),

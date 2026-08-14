@@ -4,23 +4,46 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val releaseSigningEnvironment = mapOf(
+    "ANDROID_KEYSTORE_PATH" to System.getenv("ANDROID_KEYSTORE_PATH"),
+    "ANDROID_KEYSTORE_PASSWORD" to System.getenv("ANDROID_KEYSTORE_PASSWORD"),
+    "ANDROID_KEY_ALIAS" to System.getenv("ANDROID_KEY_ALIAS"),
+    "ANDROID_KEY_PASSWORD" to System.getenv("ANDROID_KEY_PASSWORD"),
+)
+val configuredSigningValues = releaseSigningEnvironment.values.count { !it.isNullOrBlank() }
+if (configuredSigningValues in 1..3) {
+    throw GradleException("Release signing requires all ANDROID_KEYSTORE_* environment variables")
+}
+
 android {
     namespace = "com.kanjilens"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.kanjilens"
+        applicationId = "com.kanjilens.extended"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.3.0-extended.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        if (configuredSigningValues == releaseSigningEnvironment.size) {
+            create("release") {
+                storeFile = file(releaseSigningEnvironment.getValue("ANDROID_KEYSTORE_PATH")!!)
+                storePassword = releaseSigningEnvironment.getValue("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = releaseSigningEnvironment.getValue("ANDROID_KEY_ALIAS")
+                keyPassword = releaseSigningEnvironment.getValue("ANDROID_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -67,8 +90,17 @@ dependencies {
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
 
-    // ML Kit - Japanese text recognition
+    // ML Kit - baseline text recognition
+    implementation("com.google.mlkit:text-recognition:16.0.1")
     implementation("com.google.mlkit:text-recognition-japanese:16.0.1")
+
+    // ML Kit - on-demand text recognition via Google Play Services
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition-chinese:16.0.1")
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition-devanagari:16.0.1")
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition-korean:16.0.1")
+
+    // ML Kit - offline source language identification
+    implementation("com.google.mlkit:language-id:17.0.6")
 
     // ML Kit - On-device translation
     implementation("com.google.mlkit:translate:17.0.3")
@@ -93,4 +125,7 @@ dependencies {
     // Debug
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+
+    // Tests
+    testImplementation("junit:junit:4.13.2")
 }

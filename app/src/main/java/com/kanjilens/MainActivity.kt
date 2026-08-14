@@ -15,6 +15,7 @@ import com.kanjilens.capture.ScreenCaptureManager
 import com.kanjilens.data.models.AppSettings
 import com.kanjilens.data.models.CaptureState
 import com.kanjilens.ocr.TextRecognizer
+import com.kanjilens.offline.OfflineModelManager
 import com.kanjilens.translate.ScreenTranslator
 import com.kanjilens.ui.screens.CropScreen
 import com.kanjilens.ui.screens.HelpScreen
@@ -30,15 +31,18 @@ class MainActivity : ComponentActivity() {
     lateinit var dictionary: DictionaryLookup
     lateinit var settings: AppSettings
     lateinit var translator: ScreenTranslator
+    lateinit var offlineModelManager: OfflineModelManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val app = application as KanjiLensApp
         captureManager = ScreenCaptureManager(this)
         textRecognizer = TextRecognizer()
-        translator = ScreenTranslator(textRecognizer)
+        translator = ScreenTranslator(app.offlineTranslator)
         tokenizer = JapaneseTokenizer()
         dictionary = DictionaryLookup(this)
-        settings = AppSettings(this)
+        settings = app.settings
+        offlineModelManager = app.offlineModelManager
         enableEdgeToEdge()
         setContent {
             KanjiLensTheme {
@@ -50,6 +54,7 @@ class MainActivity : ComponentActivity() {
                 when (currentScreen) {
                     "settings" -> SettingsScreen(
                         settings = settings,
+                        offlineModelManager = offlineModelManager,
                         onBack = { currentScreen = "main" },
                     )
                     "help" -> HelpScreen(
@@ -75,6 +80,7 @@ class MainActivity : ComponentActivity() {
                         dictionary = dictionary,
                         translator = translator,
                         settings = settings,
+                        offlineModelManager = offlineModelManager,
                         dictionaryState = dictionaryState,
                         translateState = translateState,
                         onDictionaryStateChange = { dictionaryState = it },
