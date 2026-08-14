@@ -219,48 +219,46 @@ fun MainScreen(
         }
     }
 
-    fun doAutoTranslateCycle() {
-        scope.launch {
-            if (!selectionModelState.isReady) return@launch
-            val fullBitmap = captureManager.captureScreen() ?: return@launch
+    suspend fun doAutoTranslateCycle() {
+        if (!selectionModelState.isReady) return
+        val fullBitmap = captureManager.captureScreen() ?: return
 
-            val bitmap = cropBitmap(fullBitmap)
+        val bitmap = cropBitmap(fullBitmap)
 
-            val recognized = try {
-                translator.recognizeOffline(bitmap, sourceLanguage)
-            } catch (error: Exception) {
-                onTranslateStateChange(CaptureState.Error(error.message ?: "No text found"))
-                return@launch
+        val recognized = try {
+            translator.recognizeOffline(bitmap, sourceLanguage)
+        } catch (error: Exception) {
+            onTranslateStateChange(CaptureState.Error(error.message ?: "No text found"))
+            return
+        }
+        val currentText = recognized.blocks.joinToString("\n")
+            .lowercase()
+            .filterNot(Char::isWhitespace)
+
+        if (currentText.isEmpty()) return
+
+        if (!isSignificantChange(lastOcrText ?: "", currentText)) {
+            return // Text hasn't changed, skip
+        }
+        lastOcrText = currentText
+
+        onTranslateStateChange(CaptureState.Processing)
+
+        when (val result = translator.translateRecognizedOffline(
+            recognized, outputLanguage,
+            onDownloading = { onTranslateStateChange(CaptureState.DownloadingModel) },
+        )) {
+            is TranslateResult.Success -> {
+                onTranslateStateChange(CaptureState.TranslateSuccess(
+                    TranslationResult(
+                        translation = result.text,
+                        offlineBlocks = result.offlineBlocks,
+                        sourceLanguageTag = result.sourceLanguageTag,
+                    )
+                ))
             }
-            val currentText = recognized.blocks.joinToString("\n")
-                .lowercase()
-                .filterNot(Char::isWhitespace)
-
-            if (currentText.isEmpty()) return@launch
-
-            if (!isSignificantChange(lastOcrText ?: "", currentText)) {
-                return@launch // Text hasn't changed, skip
-            }
-            lastOcrText = currentText
-
-            onTranslateStateChange(CaptureState.Processing)
-
-            when (val result = translator.translateRecognizedOffline(
-                recognized, outputLanguage,
-                onDownloading = { onTranslateStateChange(CaptureState.DownloadingModel) },
-            )) {
-                is TranslateResult.Success -> {
-                    onTranslateStateChange(CaptureState.TranslateSuccess(
-                        TranslationResult(
-                            translation = result.text,
-                            offlineBlocks = result.offlineBlocks,
-                            sourceLanguageTag = result.sourceLanguageTag,
-                        )
-                    ))
-                }
-                is TranslateResult.Error -> {
-                    onTranslateStateChange(CaptureState.Error(result.message))
-                }
+            is TranslateResult.Error -> {
+                onTranslateStateChange(CaptureState.Error(result.message))
             }
         }
     }
@@ -355,7 +353,7 @@ fun MainScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "ThorLens",
+                        text = "ThorLens Extended",
                         fontWeight = FontWeight.Bold,
                     )
                 },
