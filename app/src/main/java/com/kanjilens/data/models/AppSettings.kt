@@ -2,6 +2,7 @@ package com.kanjilens.data.models
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.kanjilens.offline.OfflineLanguageCatalog
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -15,6 +16,7 @@ class AppSettings(context: Context) {
         private const val KEY_APP_MODE = "app_mode"
         private const val KEY_TRANSLATE_STYLE = "translate_style"
         private const val KEY_AI_MODEL = "ai_model"
+        private const val KEY_SOURCE_LANGUAGE = "source_language"
 
         const val TEXT_SIZE_SMALL = 0
         const val TEXT_SIZE_MEDIUM = 1
@@ -49,20 +51,10 @@ class AppSettings(context: Context) {
         const val LANG_KOREAN = "ko"
         const val LANG_RUSSIAN = "ru"
 
-        val OUTPUT_LANGUAGES = listOf(
-            LANG_ENGLISH to "English",
-            LANG_SPANISH to "Spanish",
-            LANG_PORTUGUESE to "Portuguese",
-            LANG_FRENCH to "French",
-            LANG_GERMAN to "German",
-            LANG_ITALIAN to "Italian",
-            LANG_CHINESE to "Chinese",
-            LANG_KOREAN to "Korean",
-            LANG_RUSSIAN to "Russian",
-        )
+        val OUTPUT_LANGUAGES = OfflineLanguageCatalog.targets.map { it.tag to it.displayName }
 
         fun languageDisplayName(code: String): String =
-            OUTPUT_LANGUAGES.firstOrNull { it.first == code }?.second ?: "English"
+            OfflineLanguageCatalog.displayName(code)
     }
 
     private val prefs: SharedPreferences =
@@ -88,6 +80,11 @@ class AppSettings(context: Context) {
 
     private val _outputLanguage = MutableStateFlow(prefs.getString(KEY_OUTPUT_LANGUAGE, LANG_ENGLISH) ?: LANG_ENGLISH)
     val outputLanguage: StateFlow<String> = _outputLanguage
+
+    private val _sourceLanguage = MutableStateFlow(
+        OfflineLanguageCatalog.normalizeSourceTag(prefs.getString(KEY_SOURCE_LANGUAGE, OfflineLanguageCatalog.AUTO))
+    )
+    val sourceLanguage: StateFlow<String> = _sourceLanguage
 
     // Crop region stored as percentages (0f..1f)
     private val _cropEnabled = MutableStateFlow(prefs.getBoolean(KEY_CROP_ENABLED, false))
@@ -162,7 +159,14 @@ class AppSettings(context: Context) {
     }
 
     fun setOutputLanguage(lang: String) {
-        _outputLanguage.value = lang
-        prefs.edit().putString(KEY_OUTPUT_LANGUAGE, lang).apply()
+        val normalized = OfflineLanguageCatalog.target(lang)?.tag ?: LANG_ENGLISH
+        _outputLanguage.value = normalized
+        prefs.edit().putString(KEY_OUTPUT_LANGUAGE, normalized).apply()
+    }
+
+    fun setSourceLanguage(lang: String) {
+        val normalized = OfflineLanguageCatalog.normalizeSourceTag(lang)
+        _sourceLanguage.value = normalized
+        prefs.edit().putString(KEY_SOURCE_LANGUAGE, normalized).apply()
     }
 }

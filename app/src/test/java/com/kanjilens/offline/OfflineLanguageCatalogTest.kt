@@ -33,4 +33,11 @@ class OfflineLanguageCatalogTest {
         assertEquals("English", OfflineLanguageCatalog.displayName("en"))
         assertEquals("English", OfflineLanguageCatalog.displayName("missing"))
     }
+
+    @Test
+    fun `invalid persisted source falls back to Auto`() {
+        assertEquals("ja", OfflineLanguageCatalog.normalizeSourceTag("ja"))
+        assertEquals(OfflineLanguageCatalog.AUTO, OfflineLanguageCatalog.normalizeSourceTag("ar"))
+        assertEquals(OfflineLanguageCatalog.AUTO, OfflineLanguageCatalog.normalizeSourceTag(null))
+    }
 }

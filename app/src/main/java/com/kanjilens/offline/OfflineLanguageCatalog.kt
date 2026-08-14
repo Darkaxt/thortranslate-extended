@@ -112,6 +112,9 @@ object OfflineLanguageCatalog {
 
     fun target(tag: String): OfflineLanguage? = targetsByTag[tag]
 
+    fun normalizeSourceTag(tag: String?): String =
+        tag?.takeIf { source(it) != null } ?: AUTO
+
     fun displayName(tag: String): String =
         source(tag)?.displayName ?: target(tag)?.displayName ?: targetNames.getValue("en")
 }
