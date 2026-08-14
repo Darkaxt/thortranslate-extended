@@ -93,4 +93,7 @@ dependencies {
     // Debug
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+
+    // Tests
+    testImplementation("junit:junit:4.13.2")
 }
