@@ -2,6 +2,19 @@
 
 An extended fork of [magiobus/thortranslate](https://github.com/magiobus/thortranslate) for translating and understanding foreign-language game screens in real time. It uses a separate Android package, `com.kanjilens.extended`, so it can be installed alongside upstream ThorLens.
 
+**Latest release:** [Download ThorLens Extended APK](https://github.com/Darkaxt/thortranslate-extended/releases/latest/download/ThorLens-Extended.apk) · [release notes and verification files](https://github.com/Darkaxt/thortranslate-extended/releases/latest)
+
+## What Extended changes
+
+Upstream ThorLens has an offline path centered on Japanese source OCR and a short output-language list. ThorLens Extended generalizes that path while leaving the Gemini, OpenAI, and Japanese dictionary modes available:
+
+- **Any-to-any offline translation where ML Kit supports both sides.** The target selector contains the full ML Kit Translation catalog instead of nine fixed outputs.
+- **Translate From defaults to Auto.** You can also choose an explicit source from the languages covered by ML Kit's Latin, Chinese, Devanagari, Japanese, and Korean OCR scripts.
+- **OCR scripts install on demand.** Selecting Chinese, Devanagari, or Korean immediately starts its Google Play Services module download; Latin and Japanese remain bundled baselines.
+- **No download confirmation dialog.** Model preparation happens in the background, with byte progress where Google exposes it and a looping indicator otherwise. Failed downloads can be retried from Settings.
+- **Offline Auto is language-neutral.** Installed OCR scripts participate in source detection, unchanged text is skipped, and capture cycles run sequentially to avoid overlapping OCR work.
+- **It installs alongside upstream.** Extended uses the separate package ID `com.kanjilens.extended` and a persistent GitHub-held release signer.
+
 ## What it does
 
 **Translate mode** (primary) — Captures a screenshot of the top screen and translates it. AI models accept any language; offline screenshot translation covers ML Kit's five OCR script families. Three translation styles are available with AI models:
@@ -132,6 +145,6 @@ MIT
 
 ## Signed releases
 
-Release APKs are built and signed in GitHub Actions. The private keystore and credentials are stored only as encrypted repository secrets; the public certificate and SHA-256 signing fingerprint are published for independent verification.
+Release APKs are built and signed in GitHub Actions and published as normal GitHub Releases. The private keystore and credentials are stored only as encrypted repository secrets; the public certificate and SHA-256 signing fingerprint are published for independent verification.
 
 See [release signing and verification](docs/signing/README.md). The official certificate SHA-256 fingerprint is `3D:89:52:F1:07:47:45:26:64:0D:75:D6:A2:BB:27:9B:1C:F5:4C:19:00:27:62:6C:A0:55:6C:9C:B0:E0:63:32`.
