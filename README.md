@@ -4,6 +4,17 @@ An extended fork of [magiobus/thortranslate](https://github.com/magiobus/thortra
 
 **Latest release:** [Download ThorLens Extended APK](https://github.com/Darkaxt/thortranslate-extended/releases/latest/download/ThorLens-Extended.apk) · [release notes and verification files](https://github.com/Darkaxt/thortranslate-extended/releases/latest)
 
+## What Extended changes
+
+Upstream ThorLens has an offline path centered on Japanese source OCR and a short output-language list. ThorLens Extended generalizes that path while leaving the Gemini, OpenAI, and Japanese dictionary modes available:
+
+- **Any-to-any offline translation where ML Kit supports both sides.** The target selector contains the full ML Kit Translation catalog instead of nine fixed outputs.
+- **Translate From defaults to Auto.** You can also choose an explicit source from the languages covered by ML Kit's Latin, Chinese, Devanagari, Japanese, and Korean OCR scripts.
+- **OCR scripts install on demand.** Selecting Chinese, Devanagari, or Korean immediately starts its Google Play Services module download; Latin and Japanese remain bundled baselines.
+- **No download confirmation dialog.** Model preparation happens in the background, with byte progress where Google exposes it and a looping indicator otherwise. Failed downloads can be retried from Settings.
+- **Offline Auto is language-neutral.** Installed OCR scripts participate in source detection, unchanged text is skipped, and capture cycles run sequentially to avoid overlapping OCR work.
+- **It installs alongside upstream.** Extended uses the separate package ID `com.kanjilens.extended` and a persistent GitHub-held release signer.
+
 ## What it does
 
 **Translate mode** (primary) — Captures a screenshot of the top screen and translates it. AI models accept any language; offline screenshot translation covers ML Kit's five OCR script families. Three translation styles are available with AI models:
