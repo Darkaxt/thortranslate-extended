@@ -4,6 +4,17 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val releaseSigningEnvironment = mapOf(
+    "ANDROID_KEYSTORE_PATH" to System.getenv("ANDROID_KEYSTORE_PATH"),
+    "ANDROID_KEYSTORE_PASSWORD" to System.getenv("ANDROID_KEYSTORE_PASSWORD"),
+    "ANDROID_KEY_ALIAS" to System.getenv("ANDROID_KEY_ALIAS"),
+    "ANDROID_KEY_PASSWORD" to System.getenv("ANDROID_KEY_PASSWORD"),
+)
+val configuredSigningValues = releaseSigningEnvironment.values.count { !it.isNullOrBlank() }
+if (configuredSigningValues in 1..3) {
+    throw GradleException("Release signing requires all ANDROID_KEYSTORE_* environment variables")
+}
+
 android {
     namespace = "com.kanjilens"
     compileSdk = 35
@@ -18,9 +29,21 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (configuredSigningValues == releaseSigningEnvironment.size) {
+            create("release") {
+                storeFile = file(releaseSigningEnvironment.getValue("ANDROID_KEYSTORE_PATH")!!)
+                storePassword = releaseSigningEnvironment.getValue("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = releaseSigningEnvironment.getValue("ANDROID_KEY_ALIAS")
+                keyPassword = releaseSigningEnvironment.getValue("ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

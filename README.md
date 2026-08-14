@@ -133,3 +133,5 @@ MIT
 ## Signed releases
 
 Release APKs are built and signed in GitHub Actions. The private keystore and credentials are stored only as encrypted repository secrets; the public certificate and SHA-256 signing fingerprint are published for independent verification.
+
+See [release signing and verification](docs/signing/README.md). The official certificate SHA-256 fingerprint is `3D:89:52:F1:07:47:45:26:64:0D:75:D6:A2:BB:27:9B:1C:F5:4C:19:00:27:62:6C:A0:55:6C:9C:B0:E0:63:32`.
