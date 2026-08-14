@@ -2,6 +2,8 @@
 
 An extended fork of [magiobus/thortranslate](https://github.com/magiobus/thortranslate) for translating and understanding foreign-language game screens in real time. It uses a separate Android package, `com.kanjilens.extended`, so it can be installed alongside upstream ThorLens.
 
+**Latest release:** [Download ThorLens Extended APK](https://github.com/Darkaxt/thortranslate-extended/releases/latest/download/ThorLens-Extended.apk) · [release notes and verification files](https://github.com/Darkaxt/thortranslate-extended/releases/latest)
+
 ## What it does
 
 **Translate mode** (primary) — Captures a screenshot of the top screen and translates it. AI models accept any language; offline screenshot translation covers ML Kit's five OCR script families. Three translation styles are available with AI models:
@@ -132,6 +134,6 @@ MIT
 
 ## Signed releases
 
-Release APKs are built and signed in GitHub Actions. The private keystore and credentials are stored only as encrypted repository secrets; the public certificate and SHA-256 signing fingerprint are published for independent verification.
+Release APKs are built and signed in GitHub Actions and published as normal GitHub Releases. The private keystore and credentials are stored only as encrypted repository secrets; the public certificate and SHA-256 signing fingerprint are published for independent verification.
 
 See [release signing and verification](docs/signing/README.md). The official certificate SHA-256 fingerprint is `3D:89:52:F1:07:47:45:26:64:0D:75:D6:A2:BB:27:9B:1C:F5:4C:19:00:27:62:6C:A0:55:6C:9C:B0:E0:63:32`.
