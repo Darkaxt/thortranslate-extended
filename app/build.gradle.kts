@@ -67,8 +67,17 @@ dependencies {
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
 
-    // ML Kit - Japanese text recognition
+    // ML Kit - baseline text recognition
+    implementation("com.google.mlkit:text-recognition:16.0.1")
     implementation("com.google.mlkit:text-recognition-japanese:16.0.1")
+
+    // ML Kit - on-demand text recognition via Google Play Services
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition-chinese:16.0.1")
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition-devanagari:16.0.1")
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition-korean:16.0.1")
+
+    // ML Kit - offline source language identification
+    implementation("com.google.mlkit:language-id:17.0.6")
 
     // ML Kit - On-device translation
     implementation("com.google.mlkit:translate:17.0.3")
